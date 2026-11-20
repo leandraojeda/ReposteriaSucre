@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Envíos</h1>
+<div class="panel fila-acciones" style="margin-top:0">
+  {% for k, nombre in [('activos','Por entregar'), ('pendiente','Pendientes'), ('en_camino','En camino'), ('entregado','Entregados'), ('cancelado','Cancelados'), ('todos','Todos')] %}
+  <a class="btn chico {{ '' if estado == k else 'sec' }}" href="{{ url_for('envios', estado=k) }}">{{ nombre }}</a>
+  {% endfor %}
+</div>
+
+{% for e in envios %}
+<div class="panel">
+  <div class="en-linea" style="justify-content:space-between">
+    <h2 style="margin:0">Envío #{{ e.id }} · Venta #{{ e.venta_id }} <span class="chip {{ e.estado }}">{{ ESTADOS_ENVIO[e.estado] }}</span>
+      {% if e.estado in ('pendiente','en_camino') and e.fecha_programada and e.fecha_programada < hoy %}<span class="chip vencido">Atrasado</span>{% endif %}</h2>
+    <a class="btn chico sec" href="{{ url_for('venta_nota', vid=e.venta_id) }}" target="_blank">🖨️ Nota</a>
+  </div>
+  <div class="campos" style="margin-top:12px">
+    <div><label>Destinatario</label>{{ e.destinatario }}</div>
+    <div><label>Teléfono</label><a href="tel:{{ e.telefono }}">{{ e.telefono }}</a></div>
+    <div><label>Entrega programada</label>{{ e.fecha_programada | fecha }}</div>
+    <div><label>Total de la venta</label>{{ e.total | bs }}</div>
+  </div>
+  <div class="campos">
+    <div><label>Dirección</label>{{ e.direccion }}{% if e.referencia %}<div class="suave">Ref.: {{ e.referencia }}</div>{% endif %}</div>
+    {% if e.observaciones %}<div><label>Observaciones</label>{{ e.observaciones }}</div>{% endif %}
+    {% if e.repartidor %}<div><label>Último cambio</label>{{ e.repartidor }} · {{ e.actualizado | fecha }}</div>{% endif %}
+  </div>
+  {% if e.estado in ('pendiente', 'en_camino') %}
+  <form method="post" action="{{ url_for('envio_estado', eid=e.id) }}" class="en-linea"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1"><label>Observación (opcional)</label><input name="observaciones" placeholder="Ej.: entregado a portería"></div>
+    {% if e.estado == 'pendiente' %}
+      <button class="btn" name="estado" value="en_camino">🚚 Salió a entregar</button>
+    {% else %}
+      <button class="btn" name="estado" value="entregado">✅ Marcar entregado</button>
+      <button class="btn sec" name="estado" value="pendiente">↩ No se pudo entregar</button>
+    {% endif %}
+  </form>
+  {% endif %}
+</div>
+{% else %}
+<div class="panel suave">No hay envíos en esta lista.</div>
+{% endfor %}
+{% endblock %}

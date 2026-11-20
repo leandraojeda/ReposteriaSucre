@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block contenido %}
+<div class="en-linea" style="justify-content:space-between;margin-bottom:16px">
+  <h1 style="margin:0">Productos e inventario</h1>
+  <div class="fila-acciones" style="margin:0">
+    <a class="btn sec" href="{{ url_for('reporte_excel', tipo='inventario') }}">Exportar Excel</a>
+    <a class="btn" href="{{ url_for('producto_form') }}">+ Nuevo producto</a>
+  </div>
+</div>
+<form class="panel en-linea" method="get">
+  <div style="flex:1"><label>Buscar</label><input name="q" value="{{ q }}" placeholder="Nombre, código o categoría"></div>
+  <button class="btn sec">Buscar</button>
+</form>
+<div class="panel tabla-scroll">
+<table>
+  <tr><th>Código</th><th>Producto</th><th>Categoría</th><th class="num">Precio</th><th class="num">Stock</th><th>Vencimiento</th><th>Reponer</th><th></th></tr>
+  {% for p in productos %}
+  <tr>
+    <td>{{ p.codigo or '—' }}</td>
+    <td>{{ p.nombre }}</td>
+    <td class="suave">{{ p.categoria }}</td>
+    <td class="num">{{ p.precio | bs }}</td>
+    <td class="num">{% if p.stock <= p.stock_minimo %}<span class="chip bajo">{{ p.stock }}</span>{% else %}{{ p.stock }}{% endif %}</td>
+    <td>{% if p.fecha_vencimiento %}
+          {% if p.fecha_vencimiento < hoy %}<span class="chip vencido">Vencido {{ p.fecha_vencimiento | fecha }}</span>
+          {% elif p.fecha_vencimiento <= limite_venc %}<span class="chip bajo">{{ p.fecha_vencimiento | fecha }}</span>
+          {% else %}{{ p.fecha_vencimiento | fecha }}{% endif %}
+        {% else %}—{% endif %}</td>
+    <td>
+      <form method="post" action="{{ url_for('producto_reponer', pid=p.id) }}" class="en-linea" style="gap:4px;flex-wrap:nowrap"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="number" name="cantidad" min="1" placeholder="Cant." style="width:70px" required>
+        <input type="date" name="fecha_vencimiento" title="Nueva fecha de vencimiento (opcional)" style="width:140px">
+        <button class="btn chico">+</button>
+      </form>
+    </td>
+    <td style="white-space:nowrap">
+      <a class="btn chico sec" href="{{ url_for('producto_form', pid=p.id) }}">Editar</a>
+      <form method="post" action="{{ url_for('producto_eliminar', pid=p.id) }}" style="display:inline"
+            onsubmit="return confirm('¿Dar de baja «{{ p.nombre }}»?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn chico peligro">Baja</button></form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="suave">No hay productos.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

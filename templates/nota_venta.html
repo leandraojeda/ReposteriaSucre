@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Nota de venta #{{ venta.id }}</title>
+<style>
+  body { font-family: "Courier New", monospace; font-size: 12px; width: 300px; margin: 10px auto; color: #000; background: #fff; }
+  h1 { font-size: 15px; text-align: center; margin: 0; }
+  .c { text-align: center; }
+  hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 2px 0; vertical-align: top; }
+  .r { text-align: right; white-space: nowrap; }
+  .total { font-size: 14px; font-weight: bold; }
+  .boton { display: block; margin: 16px auto; padding: 8px 16px; font: inherit; cursor: pointer; }
+  @media print { .boton { display: none; } body { margin: 0; } }
+</style>
+</head>
+<body>
+  <h1>{{ config.negocio_nombre }}</h1>
+  <div class="c">NIT: {{ config.negocio_nit }}</div>
+  <div class="c">{{ config.negocio_direccion }}</div>
+  {% if config.negocio_telefono %}<div class="c">Tel.: {{ config.negocio_telefono }}</div>{% endif %}
+  <hr>
+  <div class="c"><strong>NOTA DE VENTA N° {{ '%06d' % venta.id }}</strong></div>
+  <div class="c">(No válida como factura)</div>
+  {% if venta.anulada %}<div class="c"><strong>*** ANULADA ***</strong></div>{% endif %}
+  <hr>
+  <div>Fecha: {{ venta.fecha | fecha }}</div>
+  <div>Cliente: {{ venta.cliente_nombre }}</div>
+  <div>NIT/CI: {{ venta.cliente_nit }}</div>
+  <div>Atendido por: {{ venta.vendedor }}</div>
+  <hr>
+  <table>
+    {% for it in items %}
+    <tr><td colspan="2">{{ it.nombre }}</td></tr>
+    <tr><td>{{ it.cantidad }} x {{ '%.2f' % it.precio_unitario }}</td><td class="r">{{ '%.2f' % it.total }}</td></tr>
+    {% endfor %}
+  </table>
+  <hr>
+  <table>
+    <tr><td>Subtotal</td><td class="r">{{ venta.subtotal | bs }}</td></tr>
+    {% if venta.costo_envio %}<tr><td>Envío</td><td class="r">{{ venta.costo_envio | bs }}</td></tr>{% endif %}
+    <tr class="total"><td>TOTAL</td><td class="r">{{ venta.total | bs }}</td></tr>
+    <tr><td>Pago</td><td class="r">{{ METODOS_PAGO[venta.metodo_pago] }}</td></tr>
+    {% if venta.metodo_pago == 'efectivo' %}
+    <tr><td>Recibido</td><td class="r">{{ venta.monto_recibido | bs }}</td></tr>
+    <tr><td>Cambio</td><td class="r">{{ venta.cambio | bs }}</td></tr>
+    {% elif venta.referencia_pago %}
+    <tr><td>Ref.</td><td class="r">{{ venta.referencia_pago }}</td></tr>
+    {% endif %}
+  </table>
+  {% if envio %}
+  <hr>
+  <div><strong>ENVÍO A DOMICILIO</strong></div>
+  <div>Para: {{ envio.destinatario }}</div>
+  <div>Tel.: {{ envio.telefono }}</div>
+  <div>Dir.: {{ envio.direccion }}</div>
+  {% if envio.referencia %}<div>Ref.: {{ envio.referencia }}</div>{% endif %}
+  <div>Entrega: {{ envio.fecha_programada | fecha }}</div>
+  {% endif %}
+  <hr>
+  <div class="c">¡Gracias por su compra!</div>
+  <div class="c">Sucre - Bolivia</div>
+  <button class="boton" onclick="window.print()">Imprimir</button>
+</body>
+</html>

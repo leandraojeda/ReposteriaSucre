@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Ventas</h1>
+<form class="panel en-linea" method="get">
+  <div><label>Desde</label><input type="date" name="desde" value="{{ desde }}"></div>
+  <div><label>Hasta</label><input type="date" name="hasta" value="{{ hasta }}"></div>
+  <button class="btn sec">Filtrar</button>
+</form>
+<div class="panel tabla-scroll">
+<table>
+  <tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>NIT/CI</th><th>Pago</th><th>Envío</th><th class="num">Total</th><th></th></tr>
+  {% for v in ventas %}
+  <tr class="{{ 'anulada' if v.anulada }}">
+    <td><a href="{{ url_for('venta_detalle', vid=v.id) }}">#{{ v.id }}</a>{% if v.demo %} <span class="chip prueba">Prueba</span>{% endif %}</td>
+    <td>{{ v.fecha | fecha }}</td>
+    <td>{{ v.cliente_nombre }}</td>
+    <td>{{ v.cliente_nit }}</td>
+    <td>{{ METODOS_PAGO[v.metodo_pago] }}</td>
+    <td>{% if v.estado_envio %}<span class="chip {{ v.estado_envio }}">{{ ESTADOS_ENVIO[v.estado_envio] }}</span>{% else %}—{% endif %}</td>
+    <td class="num">{{ v.total | bs }}</td>
+    <td>{% if v.anulada %}<span class="chip anulada">Anulada</span>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="suave">No hay ventas en este rango.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

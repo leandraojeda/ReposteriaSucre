@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titulo %}Ingresar · {{ config.negocio_nombre }}{% endblock %}
+{% block contenido %}
+<div class="panel login">
+  <h1>🧁 {{ config.negocio_nombre }}</h1>
+  <p class="suave">Sistema de control de ventas · Sucre, Bolivia</p>
+  <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="margin-bottom:12px"><label>Usuario</label><input name="usuario" autofocus required></div>
+    <div style="margin-bottom:12px"><label>Contraseña</label><input name="clave" type="password" required></div>
+    <button class="btn" style="width:100%">Ingresar</button>
+  </form>
+</div>
+{% endblock %}

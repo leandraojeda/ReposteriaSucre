@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_graficos.html" import columnas %}
+{% block contenido %}
+<h1>Reportes</h1>
+
+<div class="panel">
+  <div class="en-linea" style="justify-content:space-between">
+    <h2 style="margin:0">Cierre de caja diario</h2>
+    <form class="en-linea" method="get">
+      <input type="hidden" name="desde" value="{{ desde }}"><input type="hidden" name="hasta" value="{{ hasta }}">
+      <div><label>Día</label><input type="date" name="dia" value="{{ dia }}"></div>
+      <button class="btn sec">Ver</button>
+      <a class="btn" href="{{ url_for('reporte_excel', tipo='cierre', dia=dia) }}">Excel</a>
+    </form>
+  </div>
+  <table style="margin-top:12px">
+    <tr><th>Método de pago</th><th class="num">N° ventas</th><th class="num">Total</th></tr>
+    {% for c in cierre %}<tr><td>{{ c.metodo }}</td><td class="num">{{ c.n }}</td><td class="num">{{ c.total | bs }}</td></tr>{% endfor %}
+    <tr><td><strong>TOTAL</strong></td><td class="num"><strong>{{ totales.n }}</strong></td><td class="num"><strong>{{ totales.total | bs }}</strong></td></tr>
+  </table>
+  <p class="suave">Incluye {{ totales.envios | bs }} cobrados por envíos.
+    {% if anuladas.n %}Ventas anuladas ese día: {{ anuladas.n }} ({{ anuladas.total | bs }}), no suman al total.{% endif %}</p>
+</div>
+
+<form class="panel en-linea" method="get">
+  <input type="hidden" name="dia" value="{{ dia }}">
+  <div><label>Período desde</label><input type="date" name="desde" value="{{ desde }}"></div>
+  <div><label>Hasta</label><input type="date" name="hasta" value="{{ hasta }}"></div>
+  <button class="btn sec">Aplicar período</button>
+</form>
+
+<div class="grid-2">
+  <div class="panel">
+    <div class="en-linea" style="justify-content:space-between">
+      <h2 style="margin:0">Ventas por día</h2>
+      <a class="btn chico" href="{{ url_for('reporte_excel', tipo='periodo', desde=desde, hasta=hasta) }}">Excel</a>
+    </div>
+    {% if por_dia %}<div style="margin-top:12px">{{ columnas(grafico_dias, "Ventas por día del período, en bolivianos") }}</div>{% endif %}
+    <table style="margin-top:12px">
+      <tr><th>Fecha</th><th class="num">Ventas</th><th class="num">Total</th></tr>
+      {% for r in por_dia %}<tr><td>{{ r.dia | fecha }}</td><td class="num">{{ r.n }}</td><td class="num">{{ r.total | bs }}</td></tr>
+      {% else %}<tr><td colspan="3" class="suave">Sin ventas en el período.</td></tr>{% endfor %}
+      <tr><td><strong>Total período</strong></td><td></td><td class="num"><strong>{{ total_periodo | bs }}</strong></td></tr>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Productos más vendidos</h2>
+    <table>
+      <tr><th>Producto</th><th class="num">Cant.</th><th class="num">Total</th></tr>
+      {% for r in top %}<tr><td>{{ r.nombre }}</td><td class="num">{{ r.cantidad }}</td><td class="num">{{ r.total | bs }}</td></tr>
+      {% else %}<tr><td colspan="3" class="suave">Sin datos.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="en-linea" style="justify-content:space-between">
+    <h2 style="margin:0">Envíos del período</h2>
+    <a class="btn chico" href="{{ url_for('reporte_excel', tipo='envios', desde=desde, hasta=hasta) }}">Excel</a>
+  </div>
+  <div class="grid" style="margin:12px 0">
+    {% for r in env_estado %}
+    <div class="tarjeta"><div class="etq">{{ r.estado }}</div><div class="valor">{{ r.n }}</div><div class="suave">Envío cobrado: {{ r.cobrado | bs }}</div></div>
+    {% endfor %}
+  </div>
+  <div class="tabla-scroll"><table>
+    <tr><th>N°</th><th>Venta</th><th>Destinatario</th><th>Dirección</th><th>Estado</th><th>Repartidor</th><th class="num">Costo envío</th></tr>
+    {% for e in env_detalle %}
+    <tr><td>{{ e.id }}</td><td><a href="{{ url_for('venta_detalle', vid=e.venta_id) }}">#{{ e.venta_id }}</a></td><td>{{ e.destinatario }}</td>
+      <td>{{ e.direccion }}</td><td><span class="chip {{ e.estado }}">{{ ESTADOS_ENVIO[e.estado] }}</span></td>
+      <td>{{ e.repartidor or '—' }}</td><td class="num">{{ e.costo_envio | bs }}</td></tr>
+    {% else %}<tr><td colspan="7" class="suave">Sin envíos en el período.</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

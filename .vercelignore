@@ -1,0 +1,9 @@
+# Nunca subir datos locales, claves ni el entorno virtual
+.venv/
+__pycache__/
+*.db
+.secret_key
+.env*
+tests/
+*.bat
+iniciar.sh

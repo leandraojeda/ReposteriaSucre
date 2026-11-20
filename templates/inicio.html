@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% from "_graficos.html" import columnas, barras %}
+{% block contenido %}
+<div class="inicio-cabecera">
+  <div>
+    <h1 style="margin:0">¡Hola, {{ usuario.nombre }}!</h1>
+    <p class="suave" style="margin:4px 0 0">Resumen de hoy, {{ hoy | fecha }}</p>
+  </div>
+</div>
+
+<div class="acciones-rapidas">
+  <a class="accion principal" href="{{ url_for('venta_nueva') }}"><span class="icono">🛒</span>Nueva venta</a>
+  <a class="accion" href="{{ url_for('envios') }}"><span class="icono">🛵</span>Envíos</a>
+  <a class="accion" href="{{ url_for('productos') }}"><span class="icono">📦</span>Productos</a>
+  <a class="accion" href="{{ url_for('reportes') }}"><span class="icono">📊</span>Reportes</a>
+</div>
+
+<div class="grid" style="margin-bottom:18px">
+  <div class="tarjeta"><div class="etq">💰 Vendido hoy</div><div class="valor">{{ resumen.total | bs }}</div></div>
+  <div class="tarjeta"><div class="etq">🧾 Ventas hoy</div><div class="valor">{{ resumen.n }}</div></div>
+  <div class="tarjeta"><div class="etq">🛵 Envíos por entregar</div><div class="valor">{{ envios_pend }}</div></div>
+  <div class="tarjeta"><div class="etq">⚠️ Alertas de inventario</div><div class="valor">{{ stock_bajo|length + por_vencer|length }}</div></div>
+</div>
+
+{% if not graficos.hay_hoy %}
+<div class="panel vacio-demo">
+  <p style="margin:0">Todavía no hay ventas hoy. ¿Querés ver cómo se ve el sistema con movimiento?</p>
+  <form method="post" action="{{ url_for('demo_generar') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn">✨ Generar ventas de prueba</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="grid-graficos">
+  <div class="panel">
+    <h2>Ventas de hoy por hora</h2>
+    {{ columnas(graficos.por_hora, "Ventas de hoy por hora, en bolivianos") }}
+  </div>
+  <div class="panel">
+    <h2>Últimos 7 días</h2>
+    {{ columnas(graficos.semana, "Ventas de los últimos 7 días, en bolivianos") }}
+  </div>
+  <div class="panel">
+    <h2>Cobrado hoy por método de pago</h2>
+    {{ barras(graficos.metodos, "Cobrado hoy por método de pago") }}
+  </div>
+  <div class="panel">
+    <h2>Lo más vendido del mes</h2>
+    {% if graficos.top %}{{ barras(graficos.top, "Productos más vendidos del mes, en unidades") }}
+    {% else %}<p class="suave">Todavía no hay ventas este mes.</p>{% endif %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>⚠️ Stock bajo</h2>
+    {% if stock_bajo %}
+    <table>
+      <tr><th>Producto</th><th class="num">Stock</th><th class="num">Mínimo</th></tr>
+      {% for p in stock_bajo %}
+      <tr><td>{{ p.nombre }}</td><td class="num"><span class="chip bajo">{{ p.stock }}</span></td><td class="num">{{ p.stock_minimo }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="suave">Todo el stock está sobre el mínimo.</p>{% endif %}
+  </div>
+  <div class="panel">
+    <h2>⏰ Vencidos o por vencer (próximos {{ config.dias_aviso_vencimiento }} días)</h2>
+    {% if por_vencer %}
+    <table>
+      <tr><th>Producto</th><th class="num">Stock</th><th class="num">Vence</th></tr>
+      {% for p in por_vencer %}
+      <tr><td>{{ p.nombre }}</td><td class="num">{{ p.stock }}</td>
+        <td class="num"><span class="chip {{ 'vencido' if p.fecha_vencimiento < hoy else 'bajo' }}">{{ p.fecha_vencimiento | fecha }}</span></td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="suave">No hay productos próximos a vencer.</p>{% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Últimas ventas</h2>
+  {% if ultimas %}
+  <div class="tabla-scroll"><table>
+    <tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th class="num">Total</th></tr>
+    {% for v in ultimas %}
+    <tr class="{{ 'anulada' if v.anulada }}"><td><a href="{{ url_for('venta_detalle', vid=v.id) }}">#{{ v.id }}</a>
+        {% if v.demo %}<span class="chip prueba">Prueba</span>{% endif %}</td>
+      <td>{{ v.fecha | fecha }}</td><td>{{ v.cliente_nombre }}</td><td>{{ METODOS_PAGO[v.metodo_pago] }}</td>
+      <td class="num">{{ v.total | bs }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p class="suave">Todavía no hay ventas. <a href="{{ url_for('venta_nueva') }}">Registrá la primera</a>.</p>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{# Gráficos simples en HTML/CSS, sin librerías ni internet.
+   Cada fila: {etq, valor, texto, tip}. Una sola serie por gráfico (color de la marca). #}
+
+{% macro columnas(filas, titulo) -%}
+{% set maximo = (filas | map(attribute='valor') | max) if filas else 0 %}
+<figure class="graf">
+  <div class="graf-columnas" role="img" aria-label="{{ titulo }}">
+    {% for f in filas %}
+    <div class="graf-col" tabindex="0">
+      <span class="graf-tip">{{ f.tip }}</span>
+      <div class="graf-area">
+        {% if maximo and f.valor == maximo %}<span class="graf-cap">{{ f.texto }}</span>{% endif %}
+        <div class="graf-barra-v" style="height: {{ ((f.valor / maximo * 100) if maximo else 0) | round(1) }}%"></div>
+      </div>
+      <span class="graf-etq">{{ f.etq }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {{ tabla(filas) }}
+</figure>
+{%- endmacro %}
+
+{% macro barras(filas, titulo) -%}
+{% set maximo = (filas | map(attribute='valor') | max) if filas else 0 %}
+<figure class="graf">
+  <div class="graf-barras" role="img" aria-label="{{ titulo }}">
+    {% for f in filas %}
+    <div class="graf-fila" tabindex="0">
+      <span class="graf-tip">{{ f.tip }}</span>
+      <span class="graf-nombre">{{ f.etq }}</span>
+      <div class="graf-pista">
+        <div class="graf-barra-h" style="width: {{ ((f.valor / maximo * 100) if maximo else 0) | round(1) }}%"></div>
+        <span class="graf-valor">{{ f.texto }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {{ tabla(filas) }}
+</figure>
+{%- endmacro %}
+
+{% macro tabla(filas) -%}
+<details class="graf-datos">
+  <summary>Ver datos</summary>
+  <table>{% for f in filas %}<tr><td>{{ f.etq }}</td><td class="num">{{ f.texto }}</td></tr>{% endfor %}</table>
+</details>
+{%- endmacro %}

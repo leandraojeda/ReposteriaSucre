@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}{{ config.negocio_nombre }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if usuario %}
+<header class="barra">
+  <div class="marca">🧁 {{ config.negocio_nombre }}</div>
+  <nav>
+    {% if usuario.rol == 'ventas' %}
+      <a href="{{ url_for('inicio') }}">Inicio</a>
+      <a href="{{ url_for('venta_nueva') }}" class="destacado">+ Nueva venta</a>
+      <a href="{{ url_for('ventas') }}">Ventas</a>
+      <a href="{{ url_for('productos') }}">Productos</a>
+      <a href="{{ url_for('envios') }}">Envíos</a>
+      <a href="{{ url_for('reportes') }}">Reportes</a>
+      <a href="{{ url_for('configuracion') }}">Configuración</a>
+    {% else %}
+      <a href="{{ url_for('envios') }}">Envíos</a>
+    {% endif %}
+  </nav>
+  <div class="sesion">
+    <a href="{{ url_for('cuenta') }}" title="Cambiar contraseña">{{ usuario.nombre }}</a>
+    <a href="{{ url_for('logout') }}">Salir</a>
+  </div>
+</header>
+{% endif %}
+<main>
+  {% with mensajes = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in mensajes %}<div class="aviso {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  {% block contenido %}{% endblock %}
+</main>
+{% if usuario %}
+<button type="button" class="chat-boton" id="chat-boton" aria-label="Abrir asistente" aria-expanded="false">💬</button>
+<section class="chat-panel" id="chat-panel" hidden aria-label="Asistente">
+  <header class="chat-cabecera">
+    <strong>Asistente</strong>
+    <button type="button" class="chat-cerrar" id="chat-cerrar" aria-label="Cerrar">×</button>
+  </header>
+  <div class="chat-mensajes" id="chat-mensajes" aria-live="polite"></div>
+  <div class="chat-sugerencias" id="chat-sugerencias">
+    {% if usuario.rol == 'ventas' %}
+      <button type="button">Ventas de hoy</button>
+      <button type="button">Stock bajo</button>
+      <button type="button">Por vencer</button>
+    {% endif %}
+    <button type="button">Envíos pendientes</button>
+  </div>
+  <form class="chat-form" id="chat-form" autocomplete="off">
+    <input type="text" id="chat-texto" maxlength="300" placeholder="Escribí tu pregunta…" aria-label="Pregunta">
+    <button type="submit" class="btn">Enviar</button>
+  </form>
+</section>
+<script>
+(function () {
+  const boton = document.getElementById("chat-boton");
+  const panel = document.getElementById("chat-panel");
+  const lista = document.getElementById("chat-mensajes");
+  const form = document.getElementById("chat-form");
+  const entrada = document.getElementById("chat-texto");
+  let iniciado = false;
+
+  function agregar(texto, quien) {
+    const div = document.createElement("div");
+    div.className = "chat-msg " + quien;
+    div.textContent = texto;
+    lista.appendChild(div);
+    lista.scrollTop = lista.scrollHeight;
+    return div;
+  }
+
+  async function enviar(texto) {
+    if (texto) agregar(texto, "yo");
+    const espera = agregar("…", "bot");
+    try {
+      const r = await fetch("{{ url_for('asistente') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-CSRF-Token": {{ csrf_token()|tojson }}},
+        body: JSON.stringify({mensaje: texto})
+      });
+      if (!r.ok) throw new Error(r.status);
+      espera.textContent = (await r.json()).respuesta;
+    } catch (e) {
+      espera.textContent = "No pude conectarme con el sistema. Recargá la página e intentá de nuevo.";
+    }
+    lista.scrollTop = lista.scrollHeight;
+  }
+
+  function alternar(abrir) {
+    panel.hidden = !abrir;
+    boton.setAttribute("aria-expanded", abrir);
+    if (abrir) {
+      if (!iniciado) { iniciado = true; enviar("hola"); lista.firstChild.remove(); }
+      entrada.focus();
+    }
+  }
+
+  boton.addEventListener("click", () => alternar(panel.hidden));
+  document.getElementById("chat-cerrar").addEventListener("click", () => alternar(false));
+  form.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const texto = entrada.value.trim();
+    if (!texto) return;
+    entrada.value = "";
+    enviar(texto);
+  });
+  document.getElementById("chat-sugerencias").addEventListener("click", (ev) => {
+    if (ev.target.tagName === "BUTTON") enviar(ev.target.textContent);
+  });
+})();
+</script>
+{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

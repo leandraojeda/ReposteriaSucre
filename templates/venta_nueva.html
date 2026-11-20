@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Nueva venta</h1>
+<form method="post" id="form-venta"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="pos">
+  <div class="panel">
+    <h2><span class="paso">1</span> Elegí los productos</h2>
+    <input id="buscar" placeholder="Buscar por nombre o código…" autocomplete="off" style="margin-bottom:10px">
+    <div class="lista-productos" id="lista">
+      {% for p in productos %}
+      <div class="prod-item" data-id="{{ p.id }}" data-texto="{{ (p.nombre ~ ' ' ~ (p.codigo or ''))|lower }}">
+        <div>
+          <div>{{ p.nombre }}</div>
+          <div class="suave">{{ p.codigo or '' }} · Stock: {{ p.stock }}
+            {% if p.fecha_vencimiento and p.fecha_vencimiento < hoy %}<span class="chip vencido">Vencido</span>{% endif %}</div>
+        </div>
+        <div><strong>{{ p.precio | bs }}</strong></div>
+      </div>
+      {% else %}
+      <p class="suave" style="padding:12px">No hay productos con stock disponible.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2><span class="paso">2</span> Revisá el carrito</h2>
+      <table class="carrito">
+        <thead><tr><th>Producto</th><th>Cant.</th><th class="num">Subtotal</th><th></th></tr></thead>
+        <tbody id="carrito"></tbody>
+      </table>
+      <p id="carrito-vacio" class="suave">Tocá un producto para agregarlo.</p>
+    </div>
+
+    <div class="panel">
+      <h2><span class="paso">3</span> Cliente y envío</h2>
+      <div class="campos">
+        <div><label>Nombre / Razón social</label><input name="cliente_nombre" id="cliente_nombre" value="{{ form.get('cliente_nombre','') }}" placeholder="S/N"></div>
+        <div><label>NIT / CI</label><input name="cliente_nit" value="{{ form.get('cliente_nit','') }}" placeholder="0"></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--texto);font-size:1rem">
+        <input type="checkbox" name="con_envio" value="1" id="con_envio" style="width:auto" {{ 'checked' if form.get('con_envio') == '1' }}>
+        Con envío a domicilio (tarifa única {{ tarifa | bs }})
+      </label>
+      <div id="datos-envio" class="oculto" style="margin-top:12px">
+        <div class="campos">
+          <div><label>Destinatario</label><input name="destinatario" value="{{ form.get('destinatario','') }}" placeholder="Igual que el cliente"></div>
+          <div><label>Teléfono / celular *</label><input name="telefono" value="{{ form.get('telefono','') }}" placeholder="7xxxxxxx"></div>
+        </div>
+        <div class="campos">
+          <div style="grid-column: 1 / -1"><label>Dirección *</label><input name="direccion" value="{{ form.get('direccion','') }}" placeholder="Calle, número, zona/barrio"></div>
+        </div>
+        <div class="campos">
+          <div><label>Referencia</label><input name="referencia" value="{{ form.get('referencia','') }}" placeholder="Ej.: frente al mercado Campesino"></div>
+          <div><label>Fecha de entrega</label><input type="date" name="fecha_programada" value="{{ form.get('fecha_programada', hoy) }}" min="{{ hoy }}"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="paso">4</span> Cobrá</h2>
+      <table>
+        <tr><td>Subtotal</td><td class="num" id="t-subtotal">Bs 0,00</td></tr>
+        <tr><td>Envío</td><td class="num" id="t-envio">Bs 0,00</td></tr>
+      </table>
+      <div class="total-grande" id="t-total" style="margin:10px 0">Bs 0,00</div>
+      <div class="campos">
+        <div style="grid-column: 1 / -1"><label>Método de pago</label>
+          <select name="metodo_pago" id="metodo_pago" class="oculto">
+            {% for k, v in METODOS_PAGO.items() %}<option value="{{ k }}" {{ 'selected' if form.get('metodo_pago') == k }}>{{ v }}</option>{% endfor %}
+          </select>
+          <div class="metodos" id="metodos" role="radiogroup" aria-label="Método de pago">
+            {% set iconos = {'efectivo': '💵', 'qr': '📱', 'tarjeta': '💳', 'transferencia': '🏦'} %}
+            {% for k, v in METODOS_PAGO.items() %}<button type="button" role="radio" data-m="{{ k }}"><span>{{ iconos[k] }}</span>{{ v }}</button>{% endfor %}
+          </div></div>
+        <div id="campo-efectivo"><label>Monto recibido (Bs)</label><input type="number" step="0.01" min="0" name="monto_recibido" id="monto_recibido" value="{{ form.get('monto_recibido','') }}"></div>
+        <div id="campo-referencia" class="oculto"><label id="lbl-referencia">N° de transacción</label><input name="referencia_pago" id="referencia_pago" value="{{ form.get('referencia_pago','') }}"></div>
+      </div>
+      <div id="panel-qr" class="panel-qr oculto">
+        <svg id="qr-svg" viewBox="0 0 29 29" width="180" height="180" role="img" aria-label="Código QR de prueba"></svg>
+        <div>
+          <div class="suave">Mostrá este QR al cliente</div>
+          <div class="qr-monto" id="qr-monto">Bs 0,00</div>
+          <div class="qr-aviso">QR de prueba: no cobra dinero real</div>
+          <button type="button" class="btn ok" id="qr-simular">✅ Simular pago recibido</button>
+          <div id="qr-estado" class="qr-estado"></div>
+        </div>
+      </div>
+      <p id="cambio" class="suave"></p>
+      <button class="btn grande" style="width:100%">Registrar venta</button>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PRODUCTOS = {
+  {% for p in productos %}{{ p.id }}: {nombre: {{ p.nombre|tojson }}, precio: {{ p.precio }}, stock: {{ p.stock }}},
+  {% endfor %}
+};
+const TARIFA = {{ tarifa }};
+const carrito = new Map(Object.entries({{ (items or {})|tojson }}).map(([k, v]) => [Number(k), v]));
+
+const bs = n => 'Bs ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function totales() {
+  let sub = 0;
+  carrito.forEach((c, id) => { if (PRODUCTOS[id]) sub += PRODUCTOS[id].precio * c; });
+  const envio = $('con_envio').checked ? TARIFA : 0;
+  return {sub, envio, total: Math.round((sub + envio) * 100) / 100};
+}
+
+function render() {
+  const tb = $('carrito');
+  tb.innerHTML = '';
+  carrito.forEach((cant, id) => {
+    const p = PRODUCTOS[id];
+    if (!p) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(p.nombre)}<input type="hidden" name="producto_id" value="${id}"></td>
+      <td><input type="number" name="cantidad" min="1" max="${p.stock}" value="${cant}"></td>
+      <td class="num">${bs(p.precio * cant)}</td>
+      <td><button type="button" class="btn chico sec" title="Quitar">✕</button></td>`;
+    tr.querySelector('input[name=cantidad]').addEventListener('change', e => {
+      let v = parseInt(e.target.value) || 1;
+      v = Math.max(1, Math.min(v, p.stock));
+      carrito.set(id, v); render();
+    });
+    tr.querySelector('button').addEventListener('click', () => { carrito.delete(id); render(); });
+    tb.appendChild(tr);
+  });
+  $('carrito-vacio').style.display = carrito.size ? 'none' : '';
+  const t = totales();
+  $('t-subtotal').textContent = bs(t.sub);
+  $('t-envio').textContent = bs(t.envio);
+  $('t-total').textContent = bs(t.total);
+  actualizarCambio();
+  dibujarQR();
+}
+
+// QR ficticio: parece un QR (con los 3 cuadros de las esquinas) pero no se puede escanear.
+function dibujarQR() {
+  const t = totales();
+  $('qr-monto').textContent = bs(t.total);
+  const N = 25, off = 2;
+  let semilla = Math.round(t.total * 100) + 7919;
+  const azar = () => (semilla = (semilla * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const esFinder = (x, y) => (x < 8 && y < 8) || (x >= N - 8 && y < 8) || (x < 8 && y >= N - 8);
+  let d = '';
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (!esFinder(x, y) && azar() < 0.5) d += `M${x + off} ${y + off}h1v1h-1z`;
+  }
+  const finder = (x, y) => `M${x + off} ${y + off}h7v7h-7zM${x + off + 1} ${y + off + 1}v5h5v-5z` +
+                           `M${x + off + 2} ${y + off + 2}h3v3h-3z`;
+  d += finder(0, 0) + finder(N - 7, 0) + finder(0, N - 7);
+  $('qr-svg').innerHTML = `<rect width="29" height="29" fill="#fff"/><path d="${d}" fill="#2d2420" fill-rule="evenodd"/>`;
+}
+
+$('qr-simular').addEventListener('click', () => {
+  if (!carrito.size) { alert('Primero agregá productos al carrito.'); return; }
+  const ref = 'QR-' + String(Math.floor(10000000 + Math.random() * 90000000));
+  $('referencia_pago').value = ref;
+  $('qr-estado').textContent = '✅ Pago recibido (simulado) · Transacción ' + ref;
+});
+
+function actualizarCambio() {
+  const t = totales();
+  const recibido = parseFloat($('monto_recibido').value);
+  const el = $('cambio');
+  if ($('metodo_pago').value !== 'efectivo' || isNaN(recibido)) { el.textContent = ''; return; }
+  const cambio = recibido - t.total;
+  el.textContent = cambio >= 0 ? 'Cambio a devolver: ' + bs(cambio) : 'Falta: ' + bs(-cambio);
+  el.style.color = cambio >= 0 ? 'var(--ok)' : 'var(--error)';
+}
+
+function metodo() {
+  const m = $('metodo_pago').value;
+  document.querySelectorAll('#metodos button').forEach(b => {
+    b.classList.toggle('activo', b.dataset.m === m);
+    b.setAttribute('aria-checked', b.dataset.m === m);
+  });
+  $('panel-qr').classList.toggle('oculto', m !== 'qr');
+  if (m !== 'qr') $('qr-estado').textContent = '';
+  $('campo-efectivo').classList.toggle('oculto', m !== 'efectivo');
+  $('campo-referencia').classList.toggle('oculto', m === 'efectivo');
+  $('lbl-referencia').textContent = m === 'tarjeta' ? 'N° de voucher (opcional)' :
+    m === 'transferencia' ? 'N° de comprobante' : 'N° de transacción QR';
+  actualizarCambio();
+}
+
+document.querySelectorAll('.prod-item').forEach(el => el.addEventListener('click', () => {
+  const id = Number(el.dataset.id);
+  const actual = carrito.get(id) || 0;
+  if (actual < PRODUCTOS[id].stock) carrito.set(id, actual + 1);
+  render();
+}));
+$('buscar').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  document.querySelectorAll('.prod-item').forEach(el => el.style.display = el.dataset.texto.includes(q) ? '' : 'none');
+});
+$('con_envio').addEventListener('change', () => { $('datos-envio').classList.toggle('oculto', !$('con_envio').checked); render(); });
+$('metodo_pago').addEventListener('change', metodo);
+document.querySelectorAll('#metodos button').forEach(b => b.addEventListener('click', () => {
+  $('metodo_pago').value = b.dataset.m; metodo();
+}));
+$('monto_recibido').addEventListener('input', actualizarCambio);
+$('form-venta').addEventListener('submit', e => {
+  if (!carrito.size) { e.preventDefault(); alert('Agregá al menos un producto.'); }
+});
+$('datos-envio').classList.toggle('oculto', !$('con_envio').checked);
+metodo();
+render();
+</script>
+{% endblock %}

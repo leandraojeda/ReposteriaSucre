@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>{{ 'Editar producto' if producto and producto.id else 'Nuevo producto' }}</h1>
+<form method="post" class="panel"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="campos">
+    <div><label>Código</label><input name="codigo" value="{{ producto.codigo or '' if producto else '' }}" placeholder="Ej.: HAR-003"></div>
+    <div style="grid-column: span 2"><label>Nombre *</label><input name="nombre" required value="{{ producto.nombre if producto else '' }}"></div>
+    <div><label>Categoría</label>
+      <select name="categoria">
+        {% for c in categorias %}<option {{ 'selected' if producto and producto.categoria == c }}>{{ c }}</option>{% endfor %}
+      </select></div>
+  </div>
+  <div class="campos">
+    <div><label>Precio unitario (Bs) *</label><input name="precio" type="number" step="0.01" min="0" required value="{{ producto.precio if producto else '' }}"></div>
+    <div><label>Stock actual</label><input name="stock" type="number" min="0" value="{{ producto.stock if producto else 0 }}"></div>
+    <div><label>Stock mínimo (alerta)</label><input name="stock_minimo" type="number" min="0" value="{{ producto.stock_minimo if producto else 5 }}"></div>
+    <div><label>Fecha de vencimiento</label><input name="fecha_vencimiento" type="date" value="{{ producto.fecha_vencimiento or '' if producto else '' }}"></div>
+  </div>
+  <div class="fila-acciones">
+    <button class="btn">Guardar</button>
+    <a class="btn sec" href="{{ url_for('productos') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block contenido %}
+<div class="en-linea" style="justify-content:space-between;margin-bottom:16px">
+  <h1 style="margin:0">Venta #{{ venta.id }} {% if venta.anulada %}<span class="chip anulada">Anulada</span>{% endif %}</h1>
+  <div class="fila-acciones" style="margin:0">
+    <a class="btn" href="{{ url_for('venta_nota', vid=venta.id) }}" target="_blank">🖨️ Imprimir nota de venta</a>
+    <a class="btn sec" href="{{ url_for('venta_nueva') }}">+ Nueva venta</a>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Datos</h2>
+    <table>
+      <tr><td class="suave">Fecha</td><td>{{ venta.fecha | fecha }}</td></tr>
+      <tr><td class="suave">Vendedor</td><td>{{ venta.vendedor }}</td></tr>
+      <tr><td class="suave">Cliente</td><td>{{ venta.cliente_nombre }}</td></tr>
+      <tr><td class="suave">NIT / CI</td><td>{{ venta.cliente_nit }}</td></tr>
+      <tr><td class="suave">Método de pago</td><td>{{ METODOS_PAGO[venta.metodo_pago] }}</td></tr>
+      {% if venta.referencia_pago %}<tr><td class="suave">Referencia</td><td>{{ venta.referencia_pago }}</td></tr>{% endif %}
+      {% if venta.metodo_pago == 'efectivo' %}
+      <tr><td class="suave">Recibido</td><td>{{ venta.monto_recibido | bs }}</td></tr>
+      <tr><td class="suave">Cambio</td><td>{{ venta.cambio | bs }}</td></tr>
+      {% endif %}
+      {% if venta.anulada %}<tr><td class="suave">Motivo anulación</td><td>{{ venta.motivo_anulacion }}</td></tr>{% endif %}
+    </table>
+  </div>
+  {% if envio %}
+  <div class="panel">
+    <h2>Envío <span class="chip {{ envio.estado }}">{{ ESTADOS_ENVIO[envio.estado] }}</span></h2>
+    <table>
+      <tr><td class="suave">Destinatario</td><td>{{ envio.destinatario }}</td></tr>
+      <tr><td class="suave">Teléfono</td><td>{{ envio.telefono }}</td></tr>
+      <tr><td class="suave">Dirección</td><td>{{ envio.direccion }}</td></tr>
+      {% if envio.referencia %}<tr><td class="suave">Referencia</td><td>{{ envio.referencia }}</td></tr>{% endif %}
+      <tr><td class="suave">Fecha de entrega</td><td>{{ envio.fecha_programada | fecha }}</td></tr>
+      {% if envio.observaciones %}<tr><td class="suave">Observaciones</td><td>{{ envio.observaciones }}</td></tr>{% endif %}
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>Detalle</h2>
+  <table>
+    <tr><th>Producto</th><th class="num">Cant.</th><th class="num">P. unit.</th><th class="num">Subtotal</th></tr>
+    {% for it in items %}
+    <tr><td>{{ it.nombre }}</td><td class="num">{{ it.cantidad }}</td><td class="num">{{ it.precio_unitario | bs }}</td><td class="num">{{ it.total | bs }}</td></tr>
+    {% endfor %}
+    <tr><td colspan="3" class="num">Subtotal</td><td class="num">{{ venta.subtotal | bs }}</td></tr>
+    {% if venta.costo_envio %}<tr><td colspan="3" class="num">Envío</td><td class="num">{{ venta.costo_envio | bs }}</td></tr>{% endif %}
+    <tr><td colspan="3" class="num"><strong>Total</strong></td><td class="num"><strong>{{ venta.total | bs }}</strong></td></tr>
+  </table>
+</div>
+
+{% if not venta.anulada and not (envio and envio.estado == 'entregado') %}
+<form method="post" action="{{ url_for('venta_anular', vid=venta.id) }}" class="panel en-linea"
+      onsubmit="return confirm('¿Anular la venta #{{ venta.id }}? El stock se devolverá al inventario.')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="flex:1"><label>Motivo de anulación</label><input name="motivo" required placeholder="Ej.: error en el cobro"></div>
+  <button class="btn peligro">Anular venta</button>
+</form>
+{% endif %}
+{% endblock %}

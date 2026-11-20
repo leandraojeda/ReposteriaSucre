@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>Cambiar contraseña</h1>
+<form method="post" class="panel" style="max-width:420px"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="margin-bottom:12px"><label>Contraseña actual</label><input type="password" name="actual" required></div>
+  <div style="margin-bottom:12px"><label>Nueva contraseña</label><input type="password" name="nueva" minlength="6" required></div>
+  <div style="margin-bottom:12px"><label>Confirmar nueva contraseña</label><input type="password" name="confirmar" minlength="6" required></div>
+  <button class="btn">Guardar</button>
+</form>
+{% endblock %}
