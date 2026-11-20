@@ -40,17 +40,19 @@ Ejecute `./iniciar.sh` con Python 3.11 o superior. La primera instalación requi
 
 ## Sitio compartido en Vercel (varios negocios)
 
-Con la variable `DATABASE_URL`, el sistema usa Postgres (Neon) en lugar de SQLite. Así funciona en Vercel. Cada negocio tiene sus propios productos, ventas, envíos, configuración y respaldo. Un usuario solo ve los datos de su negocio. En la nube no se crean las cuentas `ventas` ni `envios`: cada negocio se da de alta con `crear_negocio.py`.
+Con la variable `DATABASE_URL`, el sistema usa Postgres (Neon) en lugar de SQLite. Así funciona en Vercel. Cada negocio tiene sus propios productos, ventas, envíos, configuración y respaldo. Un usuario solo ve los datos de su negocio. En la nube no se crean las cuentas locales `ventas` ni `envios`.
 
 1. Inicie sesión: `npx vercel login`.
 2. Cree el proyecto: `npx vercel link`.
 3. En el panel de Vercel abra el proyecto, vaya a Storage → Create Database → Neon y conéctela al proyecto. Elija la región São Paulo (sa-east-1), la misma que la función (`gru1` en `vercel.json`). Esto crea `DATABASE_URL`.
 4. Cree la clave de sesiones: `openssl rand -hex 32 | npx vercel env add SECRET_KEY production`.
 5. Publique: `npx vercel --prod`.
-6. Descargue las variables y dé de alta cada negocio. La contraseña se muestra una sola vez:
-   `npx vercel env pull .env.produccion --environment=production`
-   `set -a; . ./.env.produccion; set +a; .venv/bin/python crear_negocio.py "Repostería Carito" reposteria_carito`
-   `rm .env.produccion`
+6. Cree en Vercel los secretos `CARITO_PASSWORD` y `JUANITA_PASSWORD`, con al menos ocho caracteres, para Producción y Preview. En el siguiente despliegue se crean una sola vez los usuarios `reposteria_carito` y `reposteria_juanita`. Las contraseñas nunca se guardan en Git. Si después se cambian desde la aplicación, los despliegues posteriores no las restablecen.
+
+Para dar de alta otros negocios, descargue temporalmente las variables y use `crear_negocio.py`. La contraseña se muestra una sola vez:
+`npx vercel env pull .env.produccion --environment=production`
+`set -a; . ./.env.produccion; set +a; .venv/bin/python crear_negocio.py "Nombre del negocio" usuario`
+`rm .env.produccion`
 
 `.vercelignore` impide subir las bases `.db`, `.secret_key` y `.venv`. En la nube, el respaldo descarga un archivo `.db` con los datos de ese negocio solamente. Los números de venta son correlativos para todo el sitio, por eso cada negocio verá saltos en la numeración.
 

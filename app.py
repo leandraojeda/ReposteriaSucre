@@ -322,6 +322,13 @@ PRODUCTOS_EJEMPLO = [
     ("TOR-001", "Torta de chocolate (mediana)", "Tortas y postres", 120.0, 4, 1, 2),
 ]
 
+# Las contraseñas de las cuentas iniciales de producción viven únicamente en
+# variables secretas de Vercel. Nunca deben escribirse en el repositorio.
+NEGOCIOS_INICIALES = (
+    ("Repostería Carito", "reposteria_carito", "CARITO_PASSWORD"),
+    ("Repostería Juanita", "reposteria_juanita", "JUANITA_PASSWORD"),
+)
+
 
 def columnas_sqlite(db, tabla):
     return [fila[1] for fila in db.execute(f"PRAGMA table_info({tabla})")]
@@ -402,14 +409,33 @@ def crear_negocio(nombre, usuario, clave, ejemplos=True):
         db.close()
 
 
+def asegurar_negocios_iniciales(db):
+    """Crea una sola vez las cuentas configuradas mediante secretos de Vercel."""
+    for nombre, usuario, variable in NEGOCIOS_INICIALES:
+        clave = os.environ.get(variable)
+        if not clave:
+            continue
+        if len(clave) < 8:
+            raise RuntimeError(f"{variable} debe tener al menos 8 caracteres.")
+        if db.execute("SELECT 1 FROM usuarios WHERE usuario = ?", (usuario,)).fetchone():
+            continue
+        negocio_id = db.execute("INSERT INTO negocios (nombre) VALUES (?) RETURNING id",
+                                (nombre,)).fetchone()[0]
+        db.execute("""INSERT INTO usuarios (negocio_id, usuario, nombre, rol, clave_hash)
+                      VALUES (?,?,?,?,?)""",
+                   (negocio_id, usuario, nombre, "ventas", generate_password_hash(clave)))
+        poblar_negocio(db, negocio_id, nombre)
+
+
 def init_db():
     if ES_PG:
         db = conectar()
         db.execute("SELECT pg_advisory_xact_lock(4243)")  # evita carreras entre arranques simultáneos
         db.execute(esquema_pg())
+        asegurar_negocios_iniciales(db)
         db.commit()
         db.close()
-        return  # en la nube los negocios se crean con crear_negocio.py, sin cuentas por defecto
+        return
     db = conectar()
     migrar_sqlite_a_negocios(db)
     db.executescript(ESQUEMA)
